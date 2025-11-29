@@ -10,14 +10,13 @@ class QuoteService
 {
     public function __construct(
         private CarrierRepository $carrierRepo,
+        private QuoteStrategyFactory $strategyFactory,
         private LoggerInterface $logger
     ) {}
 
     public function quote(QuoteRequestDTO $dto): array
     {
-        // Obtener carriers activos de la base de datos
         $carriers = $this->carrierRepo->findBy(['active' => true]);
-
         $results = [];
 
         $this->logger->info('Starting quote process', [
@@ -27,35 +26,24 @@ class QuoteService
         ]);
 
         foreach ($carriers as $carrier) {
-            if ($carrier->isSuccess()) {
-                $results[] = [
-                    'carrier' => $carrier->getName(),
-                    'success' => true,
-                    'price' => $carrier->getPrice(),
-                    'provider_response' => [
-                        'origin' => $dto->originZipcode,
-                        'destination' => $dto->destinationZipcode
-                    ]
-                ];
+            $strategy = $this->strategyFactory->createStrategy($carrier);
+            $quoteResult = $strategy->quote($dto);
 
+            $result = array_merge([
+                'carrier' => $carrier->getName(),
+            ], $quoteResult);
+
+            $results[] = $result;
+
+            if ($quoteResult['success'] ?? false) {
                 $this->logger->info('Carrier quote successful', [
                     'carrier' => $carrier->getName(),
-                    'price' => $carrier->getPrice()
+                    'price' => $quoteResult['price'] ?? null
                 ]);
-
             } else {
-                $results[] = [
-                    'carrier' => $carrier->getName(),
-                    'success' => false,
-                    'error' => "Simulated provider error",
-                    'provider_response' => [
-                        'origin' => $dto->originZipcode,
-                        'destination' => $dto->destinationZipcode
-                    ]
-                ];
-
                 $this->logger->warning('Carrier quote failed', [
-                    'carrier' => $carrier->getName()
+                    'carrier' => $carrier->getName(),
+                    'error' => $quoteResult['error'] ?? 'Unknown error'
                 ]);
             }
         }

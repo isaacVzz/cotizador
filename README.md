@@ -1,70 +1,118 @@
-# Cotizador de Paqueterías
+# Cotizador API
 
-## Descripción
-Este proyecto implementa un endpoint para cotizar envíos de paqueterías simulando dos proveedores externos.  
-Se incluyen logs, persistencia de carriers en base de datos MySQL y validación de los datos de entrada.
-
-El proyecto está desarrollado con **Symfony 6**, PHP 8.2 y utiliza Doctrine ORM para manejar la base de datos.
-
----
+API REST para obtener cotizaciones de diferentes carriers/proveedores de envío.
 
 ## Requisitos
-- PHP >= 8.2
-- Composer
-- MySQL
-- Symfony CLI (opcional para servidor local)
-- Extensiones de PHP necesarias: `pdo_mysql`, `curl`, `json`
 
----
+- PHP >= 8.1
+- Composer
+- MySQL/MariaDB
 
 ## Instalación
 
-1. Clonar el repositorio:
-
-```bash
-git clone https://github.com/tu-usuario/cotizador.git
-cd cotizador
-
+1. Clonar el repositorio
 2. Instalar dependencias:
 
-```bash 
+```bash
 composer install
+```
 
-3. Configurar la base de datos en .env o .env.dev:
+3. Configurar variables de entorno en `.env`:
+
+```env
 DATABASE_URL="mysql://root:@127.0.0.1:3306/cotizador?charset=utf8mb4"
+API_KEY=your-secret-api-key-here
+```
 
-4. Crear la base de datos y ejecutar migraciones:
-```bash 
+4. Crear base de datos y ejecutar migraciones:
+
+```bash
 php bin/console doctrine:database:create
 php bin/console doctrine:migrations:migrate
-
-5. Cargar datos de prueba (fixtures):
-```bash 
 php bin/console doctrine:fixtures:load
+```
 
-6. Iniciar el servidor de desarrollo:
-```bash 
- php -S localhost:8000 -t public
+## Ejecutar el servidor
 
+```bash
+php -S localhost:8000 -t public
+```
 
-## Estructura del Proyecto
-/src
- ├── Controller        # Controladores del API
- ├── Service           # Lógica de negocio (cotización, integración carriers)      # Repositorios Doctrine
- ├── Entity            # Entidades de base de datos
- └── DataFixtures      # Datos de prueba
-/config
-/public
-/migrations
+## Endpoints
 
+### POST /api/quote
 
-## Flujo Interno
+Obtiene cotizaciones de todos los carriers activos.
 
-## Flujo Interno
+**Autenticación**: Requiere header `X-API-Key` con la clave configurada en `API_KEY`.
 
-1. El usuario envía una petición con origen, destino y peso.
-2. El sistema valida los datos.
-3. Se consultan dos carriers simulados.
-4. Se calcula el precio final.
-5. Se retorna el carrier más económico.
-6. Se registra un log del proceso.
+**Request Body**:
+
+```json
+{
+  "originZipcode": "12345",
+  "destinationZipcode": "67890"
+}
+```
+
+**Ejemplo con cURL**:
+
+```bash
+curl -X POST http://localhost:8000/api/quote \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secret-api-key-here" \
+  -d '{
+    "originZipcode": "12345",
+    "destinationZipcode": "67890"
+  }'
+```
+
+**Respuesta exitosa (200)**:
+
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "carrier": "Carrier Success",
+      "success": true,
+      "price": 120.50,
+      "provider_response": {...}
+    },
+    {
+      "carrier": "Carrier Fail",
+      "success": false,
+      "error": "Provider error - service unavailable",
+      "provider_response": {...}
+    }
+  ]
+}
+```
+
+**Respuesta de error (400)**:
+
+```json
+{
+  "success": false,
+  "error": "originZipcode and destinationZipcode are required"
+}
+```
+
+**Respuesta de error (401)**:
+
+```json
+{
+  "success": false,
+  "error": "Authentication failed: Invalid API key"
+}
+```
+
+## Ejecutar pruebas
+
+```bash
+php bin/phpunit
+```
+
+## Logs
+
+Los logs se encuentran en `var/log/dev.log`.

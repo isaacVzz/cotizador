@@ -33,6 +33,6 @@ class QuoteController extends AbstractController
         return $this->json([
             'success' => true,
             'results' => $results
-        ]);
+        ], 200);
     }
 }
